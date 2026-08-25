@@ -9,6 +9,8 @@ import {
   type TimelineRecord,
 } from "./process-state";
 
+const HISTORY_LIMIT = 500;
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -265,46 +267,21 @@ export function ProcessesPanel({ theme, layout, agentId }: PluginAgentPanelProps
       }
       try {
         for (let attempt = 0; attempt < 3; attempt += 1) {
-          const firstPage = await agent.timeline.refetch({
+          const page = await agent.timeline.refetch({
             direction: "tail",
-            limit: 200,
+            limit: HISTORY_LIMIT,
             projection: "canonical",
           });
           if (!active || version !== fetchVersion) return;
-          if (firstPage.error) throw new Error(firstPage.error);
-          if (expectedEpoch && firstPage.epoch !== expectedEpoch) continue;
-          if (firstPage.gap || firstPage.staleCursor) continue;
+          if (page.error) throw new Error(page.error);
+          if (expectedEpoch && page.epoch !== expectedEpoch) continue;
+          if (page.gap || page.staleCursor) continue;
 
-          const epoch = firstPage.epoch;
+          const epoch = page.epoch;
           activeEpoch = epoch;
-          if (firstPage.reset) setRecords([]);
-          const history: TimelineRecord[] = firstPage.entries
+          const history: TimelineRecord[] = page.entries
             .map((entry: unknown) => historyRecord(entry, epoch))
             .filter((entry: TimelineRecord | undefined): entry is TimelineRecord => entry !== undefined);
-          let page = firstPage;
-          let restart = false;
-
-          while (page.hasOlder && page.startCursor) {
-            page = await agent.timeline.refetch({
-              direction: "before",
-              cursor: page.startCursor,
-              limit: 200,
-              projection: "canonical",
-            });
-            if (!active || version !== fetchVersion) return;
-            if (page.error) throw new Error(page.error);
-            if (page.epoch !== epoch || page.reset || page.gap || page.staleCursor) {
-              restart = true;
-              break;
-            }
-            history.push(
-              ...page.entries
-                .map((entry: unknown) => historyRecord(entry, epoch))
-                .filter((entry: TimelineRecord | undefined): entry is TimelineRecord => entry !== undefined),
-            );
-          }
-
-          if (restart) continue;
           setRecords((live) => mergeRecords(history, live.filter((record) => record.epoch === epoch)));
           setLoading(false);
           return;

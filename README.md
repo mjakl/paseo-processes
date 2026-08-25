@@ -46,7 +46,7 @@ paseo plugin logs paseo-processes
 
 Paseo opens the **Processes** panel in the Explorer side pane. You can leave it open beside the conversation and expand any process for more detail.
 
-The panel follows process activity recorded in the agent conversation. Its state can be incomplete after conversation rewinds or when older history is unavailable. Output shown in the panel is the last output captured by the agent, not a live log stream.
+The panel follows process activity in the latest 500 conversation entries. Older processes and activity removed by a conversation rewind may not appear. Output shown in the panel is the last output captured by the agent, not a live log stream.
 
 ## Update
 
